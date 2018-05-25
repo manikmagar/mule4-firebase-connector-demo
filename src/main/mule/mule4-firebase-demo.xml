@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:firebase="http://www.mulesoft.org/schema/mule/firebase" xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
+	xmlns:http="http://www.mulesoft.org/schema/mule/http"
+	xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
+http://www.mulesoft.org/schema/mule/firebase http://www.mulesoft.org/schema/mule/firebase/current/mule-firebase.xsd">
+	<firebase:config name="FirebaseDatabase_Config" doc:name="FirebaseDatabase Config" doc:id="c57f1c84-bfe9-4fc4-b5fa-64b8fb0598f5" configId="firebase">
+		<firebase:connection serviceAccoutKeyPath="${firebase.service.path}" databaseUrl="https://test-firebase-ae798.firebaseio.com" />
+	</firebase:config>
+	<http:listener-config name="HTTP_Listener_config" doc:name="HTTP Listener config" doc:id="35c65045-199c-43b4-b4fc-dc23d11bb703" >
+		<http:listener-connection host="0.0.0.0" port="8081" />
+	</http:listener-config>
+	<flow name="mule4-firebase-demo-operations" doc:id="a7517a7f-c331-4b1d-a13d-82c6e819266c" >
+		<scheduler doc:name="Scheduler" doc:id="0ece716f-48fd-442b-b3fa-49fd641facea" >
+			<scheduling-strategy >
+				<fixed-frequency frequency="1" timeUnit="MINUTES" startDelay="1"/>
+			</scheduling-strategy>
+		</scheduler>
+		<flow-ref doc:name="mule4-firebase-demo-push-data" doc:id="7b0aa579-0356-4bc7-9403-d9e3facd28a4" name="mule4-firebase-demo-push-data" />
+		<flow-ref doc:name="mule4-firebase-demo-update-data" doc:id="9913705a-0d78-4e0e-86bf-81b49b78f650" name="mule4-firebase-demo-update-data" />
+		<flow-ref doc:name="mule4-firebase-demo-query-data" doc:id="f6c8dc37-4fc6-4b70-88ee-f1d300b32078" name="mule4-firebase-demo-query-data" />
+	</flow>
+	<sub-flow name="mule4-firebase-demo-query-data" doc:id="a5876994-6311-4cf1-b157-babd618017dd">
+		<firebase:database-query-data doc:name="Database: Query Data" doc:id="de821b5b-2af0-4388-90e0-eef0b30bfa4c" config-ref="FirebaseDatabase_Config" refPath="#['test-user']" />
+		<logger level="INFO" doc:name="Logger" doc:id="962de731-2334-48e1-9862-ebfdd405affc" message="#[payload]" />
+	</sub-flow>
+	<sub-flow name="mule4-firebase-demo-push-data" doc:id="45789a8d-fc47-4274-b8fa-36531d7b497b">
+		<ee:transform doc:name="Transform Message" doc:id="4ee3b32d-dddc-4661-a804-692d60278d50">
+			<ee:message>
+				<ee:set-payload><![CDATA[%dw 2.0
+output application/java
+---
+{
+	"randomId": random() * 100
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<firebase:database-push-data doc:name="Database: Push Data" doc:id="85b6682a-386b-4751-87ea-688486bb3eb3" config-ref="FirebaseDatabase_Config" refPath="test-user" content="#[payload]" />
+		<logger level="INFO" doc:name="Logger" doc:id="19d57e81-1759-41ec-9a8e-4b10ed205f63" message="#['Pushed new Object with key :' ++ payload]" />
+		<set-variable value="#[payload]" doc:name="Set Variable" doc:id="7583f2a8-e3bd-4074-a833-f0cb2df96e4a" variableName="pushKey" />
+	</sub-flow>
+	<sub-flow name="mule4-firebase-demo-update-data" doc:id="023bafbc-9c2a-403e-8100-8d53dde07b26">
+		<logger level="INFO" doc:name="Logger" doc:id="e011763a-8c27-4eb2-8ece-af7fb7a43137" message="#['Updating Record with key : ' ++ payload]" />
+		<ee:transform doc:name="Transform Message" doc:id="772a1b74-bf7f-4e42-bf49-0e2b300f3965">
+			<ee:message>
+				<ee:set-payload><![CDATA[%dw 2.0
+output application/java
+---
+{
+	(payload ++ "/Name"): "Manik"
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<firebase:database-update-data doc:name="Database: Update Data" doc:id="55619fb6-e7a5-4ec5-b023-7e3badf7401c" config-ref="FirebaseDatabase_Config" refPath="test-user" content="#[payload]">
+		</firebase:database-update-data>
+	</sub-flow>
+	<flow name="mule4-firebase-demoFlow1" doc:id="948db0e7-1f14-46ea-9720-fc43effb0ad8" >
+		<firebase:database-child-listener doc:name="Database: Child Listener" doc:id="28b04356-f49b-4aad-819a-793616357e8b" config-ref="FirebaseDatabase_Config" refPath="test-user"/>
+		<logger level="INFO" doc:name="Logger" message="#[attributes.eventType ++ ' : ' ++ payload.key]" />
+		<logger level="INFO" doc:name="Logger" doc:id="30b89bae-dcfa-4661-94da-d365b4208335" message="#[payload]"/>
+		<error-handler >
+			<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="11189de8-314b-4ee7-830e-ca44af1e5f70" >
+				<logger level="INFO" doc:name="Logger" doc:id="3bda8c1a-cde2-41a1-be2d-7e19cf266465" message="#[error]"/>
+			</on-error-propagate>
+		</error-handler>
+	</flow>
+</mule>
