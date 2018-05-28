@@ -5,7 +5,7 @@
   "secureProperties": [],
   "redeploymentEnabled": true,
   "name": "mule4-firebase-demo",
-  "minMuleVersion": "4.1.1",
+  "minMuleVersion": "4.1.2",
   "requiredProduct": "MULE_EE",
   "classLoaderModelLoaderDescriptor": {
     "id": "mule",
